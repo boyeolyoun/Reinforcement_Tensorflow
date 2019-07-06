@@ -1,0 +1,48 @@
+!pip install gym
+
+import gym
+from gym.envs.registration import register
+import sys, tty, termios
+
+env = gym.make("FrozenLake-v0")
+observation = env.reset()
+
+env.render()
+
+input_ = input("num: ")
+print(input_)
+
+#파이썬 프로그램 소스
+
+MACROS
+macro = {
+  'LEFT':0,
+  'DOWN':1,
+  'RIGHT':2,
+  'UP':3
+}
+
+env = gym.make("FrozenLake-v3")
+
+env.reset()
+env.render()
+
+
+#
+while True:
+  key = input("Press a key!\n LEFT: 0, DOWN: 1, RIGHT: 2, UP: 3\n -->")
+  action = 0
+  
+  if int(key) not in macro.values():
+    print("Game aborted!")
+    break
+    
+  action = int(key)
+  new_state, reward, done, info = env.step(action)
+  env.render()
+  print("Action: {0} --> New State: {1}, Reward: {2}, Done: {3}, Info: {4}".format(action, new_state, reward, done, info))
+
+  if done:
+    print("Finished with reward", reward)
+    break
+    
