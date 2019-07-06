@@ -1,0 +1,120 @@
+!pip install gym
+#
+from gym.envs.registration import register
+
+register(
+    id = 'FrozenLake-v3',
+    entry_point = 'gym.envs.toy_text:FrozenLakeEnv',
+    kwargs={
+        'map_name': '4x4',
+        'is_slippery': False
+    }
+)
+
+#
+import random
+
+def rargmax(vector):
+  # vector 원소 중 가장 큰 값
+  m = np.amax(vector)     # m = 1.
+  # 만약 전부 0이라면 return [True, True, True, True] 아니면 가장 큰 값만 return
+  indices = np.nonzero(vector == m)[0]   # indices = [1, 2]
+  return random.choice(indices)
+  
+  #
+  
+  import gym
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+env = gym.make("FrozenLake-v3")
+  
+# 테이블을 모두 0으로 초기화
+Q = np.zeros([env.observation_space.n, env.action_space.n])
+
+# 학습 매캐변수를 설정한다.
+learning_rate = .85
+discount_reward = .99
+num_episodes = 5000
+max_step = 100
+max_early_stop_length = 20
+epsilon_decay = 0.95
+e = 1.
+
+# 보상의 총합계를 담을 리스트를 생성한다.
+rewardList = []
+
+early_stop_length = 0
+stopped_episode_num = 0
+for current_episode_num in range(num_episodes):
+  # 환경을 리셋하고 첫 번째 새로운 관찰(observation)을 얻는다.
+  observation = env.reset()
+  rewardAll = 0
+  done = False
+  step = 0
+ 
+  
+  # Q 테이블 학습 알고리즘
+  while step < max_step:
+    # Q 테이블로부터 (노이즈와 함께) 그리디하게 액션을 선택
+    e *= epsilon_decay 
+    if np.random.rand(1) < e:
+      action = env.action_space.sample()
+    else:
+      action = rargmax(Q[observation, :])
+#     action = np.argmax(Q[observation, :] + np.random.randn(1, env.action_space.n) * ( 1. / (current_episode_num + 1)))
+    
+    # 환경으로부터 새로운 상태와 보상을 얻는다.
+    next_observation, reward, done, information = env.step(action)
+    
+    # 새로운 지식을 통해 Q 테이블을 업데이트한다.
+    Q[observation, action] = Q[observation, action] + learning_rate * (reward + discount_reward * np.max(Q[next_observation, :]) - Q[observation, action])
+    rewardAll += reward
+    observation = next_observation
+    if done:
+      break
+    step += 1
+  early_stop_length += 1
+  if reward != 1.:
+    early_stop_length = 0
+  if early_stop_length >= max_early_stop_length:
+    break
+  rewardList.append(rewardAll)
+  stopped_episode_num = current_episode_num
+  
+print("Score over time: " + str(sum(rewardList) / num_episodes))
+print("Stopped episode num: " + str(current_episode_num))
+
+print("Final Q-Table Values")
+print(Q)
+
+plt.plot(rewardList)
+plt.ylim(-0.5, 1.5)
+plt.show()
+
+#
+env.reset()
+env.render()
+
+macro = {
+  'LEFT':0,
+  'DOWN':1,
+  'RIGHT':2,
+  'UP':3
+}
+
+newLine_interval = 4
+ni = 0
+for cell in Q:
+  action = np.argmax(cell[:])
+  for key, value in macro.items():
+    if value == action:
+      action = key
+      break
+  print(action, end=', ')
+  ni += 1
+  if ni >= 4:
+    ni = 0
+    print()
+    
