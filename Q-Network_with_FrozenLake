@@ -1,0 +1,127 @@
+!pip install tensorflow-gpu==2.0.0-beta1
+!pip install gym
+
+#
+import tensorflow as tf
+tf.__version__
+
+#
+from gym.envs.registration import register
+
+register(
+    id = 'FrozenLake-v3',
+    entry_point = 'gym.envs.toy_text:FrozenLakeEnv',
+    kwargs={
+        'map_name': '4x4',
+        'is_slippery': False
+    }
+)
+
+#
+import gym
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow.keras.layers as kl
+from tensorflow.keras import Input
+from tensorflow.keras import Model
+from tensorflow.python.keras.optimizers import Adam
+%matplotlib inline
+
+#
+env = gym.make("FrozenLake-v3")
+  
+input_size = env.observation_space.n
+output_size = env.action_space.n
+
+# 학습 매캐변수를 설정한다.
+learning_rate = .0001
+discount_reward = .99
+num_episodes = 300
+max_step = 100
+max_early_stop_length = 10
+epsilon_decay = 0.99
+epsilon = .5
+min_epsilon = .01
+
+# 보상의 총합계를 담을 리스트를 생성한다.
+rewardList = []
+
+# Q-Network 생성
+input = Input(shape=[input_size, ], dtype='float32', name='input')
+output = kl.Dense(32, activation='relu')(input)
+output = kl.Dense(32, activation='relu')(output)
+output = kl.Dense(output_size, activation='softmax', name='value')(output)
+
+Q_Network_model = Model(input, output)
+Q_Network_model.summary()
+
+Q_Network_model.compile(
+    loss='mse',
+    optimizer=Adam(lr=learning_rate)
+)
+
+def one_hot(x):
+  return np.identity(input_size)[x:x+1]
+
+early_stop_length = 0
+stopped_episode_num = 0
+
+for current_episode_num in range(num_episodes):
+  # 환경을 리셋하고 첫 번째 새로운 관찰(observation)을 얻는다.
+  observation = env.reset()
+  rewardAll = 0
+  done = False
+  step = 0
+  
+  print(current_episode_num, end=', ')
+  # Q 테이블 학습 알고리즘
+  while not done and step < max_step:
+    # Q 테이블로부터 (노이즈와 함께) 그리디하게 액션을 선택
+    Q_values = Q_Network_model.predict(one_hot(observation))
+    if epsilon > min_epsilon:
+      epsilon *= epsilon_decay 
+    if np.random.rand(1) < epsilon:
+      action = env.action_space.sample()
+    else:
+      action = np.argmax(Q_values)
+    
+    # 환경으로부터 새로운 상태와 보상을 얻는다.
+    next_observation, reward, done, information = env.step(action)
+    
+    if done:
+      Q_values[0, action] = reward
+    else:
+      Q_values_next = Q_Network_model.predict(one_hot(next_observation))
+      Q_values[0, action] = reward + discount_reward * np.max(Q_values_next)
+    
+    # 새로운 지식을 통해 Q 테이블을 업데이트한다.
+    Q_Network_model.fit(
+        x=one_hot(observation),
+        y=Q_values,
+        batch_size=1,
+        epochs=1,
+        verbose=0
+    )
+    
+    rewardAll += reward
+    observation = next_observation
+    step += 1
+    
+  early_stop_length += 1
+  if reward != 1.:
+    early_stop_length = 0
+  if early_stop_length >= max_early_stop_length:
+    break
+  rewardList.append(rewardAll)
+  stopped_episode_num = current_episode_num
+
+print()
+print("Score over time: " + str(sum(rewardList) / num_episodes))
+print("Stopped episode num: " + str(current_episode_num))
+
+plt.plot(rewardList)
+plt.ylim(-0.5, 1.5)
+plt.show()
+
+#
+숫자는 펭귄이 시더하는 에피소드임
